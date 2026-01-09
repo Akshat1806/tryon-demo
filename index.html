@@ -2,131 +2,98 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>Virtual Jersey Try-On Demo</title>
-
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-
+  <title>Virtual Try-On Demo</title>
   <style>
     body {
       font-family: Arial, sans-serif;
-      max-width: 500px;
-      margin: 40px auto;
-      padding: 20px;
+      background: #f4f4f4;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
     }
-
-    h2 {
+    .box {
+      background: white;
+      padding: 24px;
+      border-radius: 8px;
+      width: 320px;
       text-align: center;
     }
-
-    input, button {
-      width: 100%;
-      margin-top: 15px;
-      padding: 10px;
-      font-size: 16px;
-    }
-
-    button {
-      cursor: pointer;
-    }
-
     img {
-      margin-top: 20px;
       max-width: 100%;
-      border-radius: 10px;
+      margin-top: 16px;
     }
-
-    .loader {
-      display: none;
-      text-align: center;
-      margin-top: 15px;
+    button {
+      margin-top: 12px;
+      padding: 10px;
+      width: 100%;
+      cursor: pointer;
     }
   </style>
 </head>
-
 <body>
 
-  <h2>Virtual Jersey Try-On</h2>
+<div class="box">
+  <h2>Virtual Try-On</h2>
 
-  <p>
-    Upload your photo and see how the jersey looks on you.
-  </p>
-
-  <!-- USER IMAGE INPUT -->
-  <input type="file" id="userImage" accept="image/*" />
-
-  <!-- TRY ON BUTTON -->
+  <input type="file" id="imageInput" accept="image/*" />
   <button id="tryOnBtn">Try It On</button>
 
-  <!-- LOADER -->
-  <div class="loader" id="loader">Processing…</div>
+  <p id="status"></p>
+  <img id="result" />
 
-  <!-- RESULT IMAGE -->
-  <img id="resultImage" />
+</div>
 
-  <script>
-    const tryOnBtn = document.getElementById("tryOnBtn");
-    const resultImage = document.getElementById("resultImage");
-    const loader = document.getElementById("loader");
+<script>
+const tryOnBtn = document.getElementById("tryOnBtn");
+const imageInput = document.getElementById("imageInput");
+const statusText = document.getElementById("status");
+const resultImg = document.getElementById("result");
 
-    function fileToBase64(file) {
-      return new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => resolve(reader.result);
-        reader.onerror = reject;
-        reader.readAsDataURL(file);
-      });
+tryOnBtn.onclick = async () => {
+  if (!imageInput.files.length) {
+    alert("Please upload an image");
+    return;
+  }
+
+  try {
+    tryOnBtn.disabled = true;
+    statusText.innerText = "Processing...";
+
+    const file = imageInput.files[0];
+    const formData = new FormData();
+    formData.append("userImage", file);
+
+    const response = await fetch(
+      "https://tryonapi.virtual-tryon.me/webhook/tryon",
+      {
+        method: "POST",
+        body: formData
+      }
+    );
+
+    if (!response.ok) {
+      throw new Error("Server error");
     }
 
-    tryOnBtn.onclick = async () => {
-      const file = document.getElementById("userImage").files[0];
+    const data = await response.json();
 
-      if (!file) {
-        alert("Please upload your photo");
-        return;
-      }
+    if (!data.resultImage) {
+      throw new Error("Invalid response");
+    }
 
-      loader.style.display = "block";
-      resultImage.src = "";
+    resultImg.src = data.resultImage;
+    statusText.innerText = "Done ✅";
 
-      try {
-        const userImageBase64 = await fileToBase64(file);
-
-        const response = await fetch(
-          "http://20.193.250.8:5678/webhook/tryon",
-          {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              "x-api-key": "The S.H.I.E.L.D"
-            },
-            body: JSON.stringify({
-              userImageBase64: userImageBase64,
-              jerseyImageUrl:
-                "https://tryon-demo-nu.vercel.app/demo-jersey.jpeg"
-            })
-          }
-        );
-
-        const data = await response.json();
-
-        if (!data.success) {
-          alert("Try-on failed");
-          loader.style.display = "none";
-          return;
-        }
-
-        resultImage.src =
-          `data:${data.mimeType};base64,${data.imageBase64}`;
-
-      } catch (err) {
-        console.error(err);
-        alert("Something went wrong");
-      } finally {
-        loader.style.display = "none";
-      }
-    };
-  </script>
+  } catch (err) {
+    console.error(err);
+    alert("Something went wrong");
+    statusText.innerText = "";
+  } finally {
+    tryOnBtn.disabled = false;
+  }
+};
+</script>
 
 </body>
 </html>
-
