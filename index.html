@@ -64,13 +64,13 @@ tryOnBtn.onclick = async () => {
     const formData = new FormData();
     formData.append("userImage", file);
 
-    const response = await fetch(
-      "https://tryonapi.virtual-tryon.me/webhook/tryon",
-      {
+      const res = await fetch("https://tryonapi.virtual-tryon.me/webhook/tryon", {
         method: "POST",
-        body: formData
-      }
-    );
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userImageBase64: reader.result
+        })
+      });
 
     if (!response.ok) {
       throw new Error("Server error");
@@ -97,3 +97,4 @@ tryOnBtn.onclick = async () => {
 
 </body>
 </html>
+
