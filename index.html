@@ -2,84 +2,129 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>Virtual Jersey Try-On</title>
+  <title>Virtual Jersey Try-On Demo</title>
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
   <style>
     body {
       font-family: Arial, sans-serif;
-      max-width: 600px;
+      max-width: 500px;
       margin: 40px auto;
+      padding: 20px;
     }
-    img {
-      max-width: 100%;
-      margin-top: 20px;
+
+    h2 {
+      text-align: center;
     }
-    button {
-      margin-top: 20px;
-      padding: 10px 16px;
+
+    input, button {
+      width: 100%;
+      margin-top: 15px;
+      padding: 10px;
       font-size: 16px;
+    }
+
+    button {
+      cursor: pointer;
+    }
+
+    img {
+      margin-top: 20px;
+      max-width: 100%;
+      border-radius: 10px;
+    }
+
+    .loader {
+      display: none;
+      text-align: center;
+      margin-top: 15px;
     }
   </style>
 </head>
+
 <body>
 
-  <h2>Virtual Jersey Try-On (Demo)</h2>
+  <h2>Virtual Jersey Try-On</h2>
 
-  <label>User Image</label><br />
-  <input type="file" id="userImage" accept="image/*" /><br /><br />
+  <p>
+    Upload your photo and see how the jersey looks on you.
+  </p>
 
-  <label>Jersey Image</label><br />
-  <input type="file" id="jerseyImage" accept="image/*" /><br />
+  <!-- USER IMAGE INPUT -->
+  <input type="file" id="userImage" accept="image/*" />
 
-  <button id="tryOnBtn">Try On</button>
+  <!-- TRY ON BUTTON -->
+  <button id="tryOnBtn">Try It On</button>
 
-  <h3>Result</h3>
+  <!-- LOADER -->
+  <div class="loader" id="loader">Processing…</div>
+
+  <!-- RESULT IMAGE -->
   <img id="resultImage" />
 
   <script>
     const tryOnBtn = document.getElementById("tryOnBtn");
     const resultImage = document.getElementById("resultImage");
+    const loader = document.getElementById("loader");
 
     function fileToBase64(file) {
       return new Promise((resolve, reject) => {
         const reader = new FileReader();
-        reader.onload = () => resolve(reader.result.split(",")[1]);
+        reader.onload = () => resolve(reader.result);
         reader.onerror = reject;
         reader.readAsDataURL(file);
       });
     }
 
-    tryOnBtn.addEventListener("click", async () => {
-      const userFile = document.getElementById("userImage").files[0];
-      const jerseyFile = document.getElementById("jerseyImage").files[0];
+    tryOnBtn.onclick = async () => {
+      const file = document.getElementById("userImage").files[0];
 
-      if (!userFile || !jerseyFile) {
-        alert("Please upload both images");
+      if (!file) {
+        alert("Please upload your photo");
         return;
       }
 
+      loader.style.display = "block";
+      resultImage.src = "";
+
       try {
-        const userBase64 = await fileToBase64(userFile);
-        const jerseyBase64 = await fileToBase64(jerseyFile);
+        const userImageBase64 = await fileToBase64(file);
 
-        const res = await fetch("https://YOUR_BACKEND_URL/tryon", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            userImageBase64: userBase64,
-            jerseyImageBase64: jerseyBase64
-          })
-        });
+        const response = await fetch(
+          "http://20.193.250.8:5678/webhook/tryon",
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "x-api-key": "The S.H.I.E.L.D"
+            },
+            body: JSON.stringify({
+              userImageBase64: userImageBase64,
+              jerseyImageUrl:
+                "https://tryon-demo-nu.vercel.app/demo-jersey.jpeg"
+            })
+          }
+        );
 
-        const data = await res.json();
+        const data = await response.json();
 
-        // backend should return base64 image
-        resultImage.src = "data:image/jpeg;base64," + data.outputImageBase64;
+        if (!data.success) {
+          alert("Try-on failed");
+          loader.style.display = "none";
+          return;
+        }
+
+        resultImage.src =
+          `data:${data.mimeType};base64,${data.imageBase64}`;
 
       } catch (err) {
         console.error(err);
         alert("Something went wrong");
+      } finally {
+        loader.style.display = "none";
       }
-    });
+    };
   </script>
 
 </body>
