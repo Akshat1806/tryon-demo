@@ -25,32 +25,18 @@
       text-align: center;
     }
 
-    h1 {
-      margin-bottom: 12px;
-    }
-
-    input[type="file"] {
-      margin: 12px 0;
-    }
-
     button {
       padding: 10px 20px;
       font-size: 16px;
-      cursor: pointer;
-      border: none;
       border-radius: 6px;
       background: #000;
       color: white;
-      margin-top: 10px;
+      border: none;
+      cursor: pointer;
     }
 
     button:disabled {
       background: #777;
-    }
-
-    #status {
-      margin-top: 12px;
-      font-size: 14px;
     }
 
     img {
@@ -63,12 +49,12 @@
 
 <body>
   <div class="container">
-    <h1>Virtual Try-On</h1>
-    <p>Upload your photo and see the jersey on you.</p>
+    <h2>Virtual Try-On</h2>
 
-    <input type="file" id="imageInput" accept="image/*" />
-    <br />
-    <button id="tryBtn" onclick="tryOn()">Try It On</button>
+    <input type="file" id="userImage" accept="image/*" />
+    <br><br>
+
+    <button id="tryBtn">Try It On</button>
 
     <p id="status"></p>
 
@@ -76,58 +62,51 @@
   </div>
 
   <script>
-    async function tryOn() {
-      const fileInput = document.getElementById("imageInput");
+    const btn = document.getElementById("tryBtn");
+    const status = document.getElementById("status");
+    const resultImage = document.getElementById("resultImage");
+
+    btn.onclick = async () => {
+      const fileInput = document.getElementById("userImage");
       const file = fileInput.files[0];
-      const status = document.getElementById("status");
-      const resultImage = document.getElementById("resultImage");
-      const button = document.getElementById("tryBtn");
 
       if (!file) {
-        alert("Please select an image first.");
+        alert("Select an image first");
         return;
       }
 
+      btn.disabled = true;
       status.innerText = "Processing...";
-      button.disabled = true;
       resultImage.src = "";
 
-      const reader = new FileReader();
+      const formData = new FormData();
+      formData.append("userImage", file); // MUST MATCH n8n binary name
 
-      reader.onload = async () => {
-        try {
-          const response = await fetch(
-            "https://tryonapi.virtual-tryon.me/webhook/tryon",
-            {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json"
-              },
-              body: JSON.stringify({
-                userImageBase64: reader.result
-              })
-            }
-          );
-
-          const data = await response.json();
-
-          if (!data.success) {
-            throw new Error("Try-on failed");
+      try {
+        const res = await fetch(
+          "https://tryonapi.virtual-tryon.me/webhook/tryon",
+          {
+            method: "POST",
+            body: formData
           }
+        );
 
-          resultImage.src = data.resultImage;
-          status.innerText = "Done ✅";
-        } catch (err) {
-          console.error(err);
-          alert("Something went wrong. Check console.");
-          status.innerText = "Error ❌";
-        } finally {
-          button.disabled = false;
+        const data = await res.json();
+
+        if (!data.image) {
+          throw new Error("No image returned");
         }
-      };
 
-      reader.readAsDataURL(file);
-    }
+        resultImage.src = data.image;
+        status.innerText = "Done ✅";
+      } catch (e) {
+        console.error(e);
+        status.innerText = "Error ❌";
+        alert("Check console");
+      } finally {
+        btn.disabled = false;
+      }
+    };
   </script>
 </body>
 </html>
