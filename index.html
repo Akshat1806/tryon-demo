@@ -28,11 +28,11 @@
     button {
       padding: 10px 20px;
       font-size: 16px;
+      cursor: pointer;
       border-radius: 6px;
       background: #000;
       color: white;
       border: none;
-      cursor: pointer;
     }
 
     button:disabled {
@@ -49,63 +49,61 @@
 
 <body>
   <div class="container">
-    <h2>Virtual Try-On</h2>
-
-    <input type="file" id="userImage" accept="image/*" />
-    <br><br>
-
+    <h1>Virtual Try-On</h1>
+    <input type="file" id="imageInput" accept="image/*" />
+    <br /><br />
     <button id="tryBtn">Try It On</button>
-
     <p id="status"></p>
-
     <img id="resultImage" />
   </div>
 
   <script>
-    const btn = document.getElementById("tryBtn");
-    const status = document.getElementById("status");
-    const resultImage = document.getElementById("resultImage");
-
-    btn.onclick = async () => {
-      const fileInput = document.getElementById("userImage");
-      const file = fileInput.files[0];
+    document.getElementById("tryBtn").onclick = async () => {
+      const file = document.getElementById("imageInput").files[0];
+      const status = document.getElementById("status");
+      const resultImage = document.getElementById("resultImage");
+      const button = document.getElementById("tryBtn");
 
       if (!file) {
-        alert("Select an image first");
+        alert("Please select an image");
         return;
       }
 
-      btn.disabled = true;
-      status.innerText = "Processing...";
+      button.disabled = true;
+      status.innerText = "Processing…";
       resultImage.src = "";
 
-      const formData = new FormData();
-      formData.append("userImage", file); // MUST MATCH n8n binary name
+      const reader = new FileReader();
+      reader.onload = async () => {
+        try {
+          const res = await fetch(
+            "https://tryonapi.virtual-tryon.me/webhook/tryon",
+            {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                userImageBase64: reader.result
+              })
+            }
+          );
 
-      try {
-        const res = await fetch(
-          "https://tryonapi.virtual-tryon.me/webhook/tryon",
-          {
-            method: "POST",
-            body: formData
+          const data = await res.json();
+
+          if (!data.success || !data.resultImage) {
+            throw new Error("No image returned");
           }
-        );
 
-        const data = await res.json();
-
-        if (!data.image) {
-          throw new Error("No image returned");
+          resultImage.src = data.resultImage;
+          status.innerText = "Done ✅";
+        } catch (e) {
+          console.error(e);
+          status.innerText = "Failed ❌";
+        } finally {
+          button.disabled = false;
         }
+      };
 
-        resultImage.src = data.image;
-        status.innerText = "Done ✅";
-      } catch (e) {
-        console.error(e);
-        status.innerText = "Error ❌";
-        alert("Check console");
-      } finally {
-        btn.disabled = false;
-      }
+      reader.readAsDataURL(file);
     };
   </script>
 </body>
